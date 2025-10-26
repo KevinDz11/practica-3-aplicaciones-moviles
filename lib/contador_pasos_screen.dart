@@ -14,6 +14,20 @@ class _ContadorPasosScreenState extends State<ContadorPasosScreen> {
   bool _monitoreando = false;
   DateTime? _ultimoPaso;
 
+  // --- INICIO DE CAMBIOS (SENSIBILIDAD) ---
+
+  // Ajusta este valor para cambiar la sensibilidad del pisotón.
+  // Más alto = Menos sensible (necesita más fuerza).
+  // Más bajo = Más sensible (detecta movimientos más leves).
+  // Valor original: 15
+  final double _umbralDeteccion = 20.0;
+
+  // Ajusta este valor para el tiempo mínimo entre pasos (en milisegundos).
+  // Más alto = Menos sensible (ignora pasos muy rápidos).
+  // Más bajo = Más sensible (permite contar pasos rápidos).
+  // Valor original: 300
+  final int _milisegundosEntrePasos = 1000;
+
   @override
   void initState() {
     super.initState();
@@ -30,10 +44,13 @@ class _ContadorPasosScreenState extends State<ContadorPasosScreen> {
 
       final delta = aceleracionTotal - _ultimaAceleracion;
 
-      if (delta > 15) { // Umbral para detectar paso
+      // --- CAMBIO AQUÍ ---
+      if (delta > _umbralDeteccion) { // Usamos la variable
         final ahora = DateTime.now();
+
+        // --- CAMBIO AQUÍ ---
         if (_ultimoPaso == null ||
-            ahora.difference(_ultimoPaso!) > const Duration(milliseconds: 300)) {
+            ahora.difference(_ultimoPaso!) > Duration(milliseconds: _milisegundosEntrePasos)) { // Usamos la variable
 
           setState(() {
             _pasos++;

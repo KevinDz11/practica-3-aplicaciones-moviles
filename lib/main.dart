@@ -13,12 +13,24 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeData>(
+    // Escucha el ValueNotifier que ahora contiene 'guinda' o 'azul'
+    return ValueListenableBuilder<String>(
       valueListenable: ThemeManager.themeNotifier,
-      builder: (context, theme, child) {
+      builder: (context, themeName, child) {
         return MaterialApp(
           title: 'Recordatorios App',
-          theme: theme,
+          // Configura el modo automático
+          themeMode: ThemeMode.system,
+
+          // Asigna los temas claros y oscuros según el nombre
+          theme: themeName == 'azul'
+              ? ThemeManager.azulLightTheme
+              : ThemeManager.guindaLightTheme,
+
+          darkTheme: themeName == 'azul'
+              ? ThemeManager.azulDarkTheme
+              : ThemeManager.guindaDarkTheme,
+
           home: const HomeScreen(),
           debugShowCheckedModeBanner: false,
         );

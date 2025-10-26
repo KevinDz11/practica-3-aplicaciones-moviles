@@ -24,7 +24,7 @@ class Recordatorio {
       'id': id,
       'titulo': titulo,
       'descripcion': descripcion,
-      'fechaHora': fechaHora.toIso8601String(),
+      'fechaHora': fechaHora.toIso86o1String(),
       'activo': activo,
     };
   }
@@ -69,11 +69,12 @@ class _RecordatoriosScreenState extends State<RecordatoriosScreen> {
     const AndroidInitializationSettings androidSettings =
     AndroidInitializationSettings('@mipmap/ic_launcher');
 
+    // 1. CAMBIO PARA NOTIFICACIÓN SILENCIOSA (iOS)
     const DarwinInitializationSettings iosSettings =
     DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestSoundPermission: false, // <-- Cambiado a false
     );
 
     const InitializationSettings initializationSettings =
@@ -87,16 +88,19 @@ class _RecordatoriosScreenState extends State<RecordatoriosScreen> {
 
   void _cargarRecordatorios() {
     // En una app real, cargaríamos desde SharedPreferences o base de datos
-    setState(() {
-      _recordatorios.addAll([
-        Recordatorio(
-          id: '1',
-          titulo: 'Recordatorio de ejemplo',
-          descripcion: 'Esta es una descripción de ejemplo',
-          fechaHora: DateTime.now().add(const Duration(hours: 1)),
-        ),
-      ]);
-    });
+    // Esta lista ahora persistirá gracias al IndexedStack en home_screen.dart
+    if (_recordatorios.isEmpty) { // Solo añadimos el ejemplo si la lista está vacía
+      setState(() {
+        _recordatorios.addAll([
+          Recordatorio(
+            id: '1',
+            titulo: 'Recordatorio de ejemplo',
+            descripcion: 'Esta es una descripción de ejemplo',
+            fechaHora: DateTime.now().add(const Duration(hours: 1)),
+          ),
+        ]);
+      });
+    }
   }
 
   void _agregarRecordatorio() {
@@ -218,15 +222,24 @@ class _RecordatoriosScreenState extends State<RecordatoriosScreen> {
   }
 
   Future<void> _programarNotificacion(Recordatorio recordatorio) async {
+
+    // 2. CAMBIO PARA NOTIFICACIÓN SILENCIOSA (Android)
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'recordatorios_channel',
       'Recordatorios',
       channelDescription: 'Canal para recordatorios programados',
-      importance: Importance.max,
-      priority: Priority.high,
+      importance: Importance.default, // <-- Bajado de .max a .default
+      priority: Priority.default, // <-- Bajado de .high a .default
+      playSound: false, // <-- Explícitamente apagamos sonido
+      enableVibration: false, // <-- Explícitamente apagamos vibración
     );
 
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails();
+    // 3. CAMBIO PARA NOTIFICACIÓN SILENCIOSA (iOS)
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentSound: false, // <-- Explícitamente apagamos sonido
+      presentAlert: true,
+      presentBadge: true,
+    );
 
     const NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
@@ -310,7 +323,8 @@ class _RecordatoriosScreenState extends State<RecordatoriosScreen> {
             background: Container(color: Colors.red),
             onDismissed: (direction) => _eliminarRecordatorio(index),
             child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 8),
               child: ListTile(
                 leading: Icon(
                   recordatorio.activo
@@ -327,7 +341,8 @@ class _RecordatoriosScreenState extends State<RecordatoriosScreen> {
                     Text(recordatorio.descripcion),
                     const SizedBox(height: 4),
                     Text(
-                      DateFormat('dd/MM/yyyy HH:mm').format(recordatorio.fechaHora),
+                      DateFormat('dd/MM/yyyy HH:mm')
+                          .format(recordatorio.fechaHora),
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 12,
