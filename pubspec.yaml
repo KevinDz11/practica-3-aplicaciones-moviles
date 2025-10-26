@@ -6,17 +6,29 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '^3.9.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_local_notifications: ^16.3.0
-  timezone: ^0.9.1
-  shared_preferences: ^2.2.2
-  sensors_plus: ^1.3.0
-  flashlight_controller: ^0.3.0
-  intl: ^0.18.0
+
+  # Para Notificaciones (versión moderna)
+  flutter_local_notifications: ^19.5.0
+
+  # Dependencias de notificaciones (actualizadas)
+  timezone: ^0.10.1
+
+  # Para guardar historial (versión moderna)
+  shared_preferences: ^2.2.3 # (Usamos una versión estable moderna)
+
+  # Para Contador de Pasos (versión moderna que arregla el error)
+  sensors_plus: ^7.0.0
+
+  # Para Linterna (el paquete correcto y moderno)
+  torch_light: ^1.1.0
+
+  # Dependencia interna (actualizada)
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

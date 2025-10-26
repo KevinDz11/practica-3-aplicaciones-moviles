@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:torch_compat/torch_compat.dart';
+import 'package:torch_light/torch_light.dart'; // <--- 1. IMPORT CORREGIDO
 
 class LinternaScreen extends StatefulWidget {
   const LinternaScreen({Key? key}) : super(key: key);
@@ -10,7 +10,7 @@ class LinternaScreen extends StatefulWidget {
 
 class _LinternaScreenState extends State<LinternaScreen> {
   bool _linternaActiva = false;
-  bool _disponible = true;
+  bool _disponible = false; // Inicia como falso hasta verificar
 
   @override
   void initState() {
@@ -18,9 +18,10 @@ class _LinternaScreenState extends State<LinternaScreen> {
     _verificarDisponibilidad();
   }
 
-  void _verificarDisponibilidad() async {
+  Future<void> _verificarDisponibilidad() async {
     try {
-      final disponible = await TorchCompat.isAvailable;
+      // 2. FORMA NUEVA DE VERIFICAR
+      final disponible = await TorchLight.isTorchAvailable();
       setState(() {
         _disponible = disponible;
       });
@@ -31,12 +32,14 @@ class _LinternaScreenState extends State<LinternaScreen> {
     }
   }
 
-  void _toggleLinterna() async {
+  Future<void> _toggleLinterna() async {
     try {
       if (_linternaActiva) {
-        await TorchCompat.turnOff();
+        // 3. FORMA NUEVA DE APAGAR
+        await TorchLight.disableTorch();
       } else {
-        await TorchCompat.turnOn();
+        // 4. FORMA NUEVA DE ENCENDER
+        await TorchLight.enableTorch();
       }
       setState(() {
         _linternaActiva = !_linternaActiva;
@@ -121,7 +124,8 @@ class _LinternaScreenState extends State<LinternaScreen> {
   @override
   void dispose() {
     if (_linternaActiva) {
-      TorchCompat.turnOff();
+      // 5. APAGAR AL SALIR
+      TorchLight.disableTorch();
     }
     super.dispose();
   }

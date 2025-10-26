@@ -1,167 +1,361 @@
 import 'package:flutter/material.dart';
-import 'package:sensors/sensors.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:intl/intl.dart';
 
-class ContadorPasosScreen extends StatefulWidget {
-  const ContadorPasosScreen({Key? key}) : super(key: key);
+class Recordatorio {
+  final String id;
+  final String titulo;
+  final String descripcion;
+  final DateTime fechaHora;
+  bool activo;
 
-  @override
-  State<ContadorPasosScreen> createState() => _ContadorPasosScreenState();
+  Recordatorio({
+    required this.id,
+    required this.titulo,
+    required this.descripcion,
+    required this.fechaHora,
+    this.activo = true,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'titulo': titulo,
+      'descripcion': descripcion,
+      'fechaHora': fechaHora.toIso8601String(),
+      'activo': activo,
+    };
+  }
+
+  static Recordatorio fromMap(Map<String, dynamic> map) {
+    return Recordatorio(
+      id: map['id'],
+      titulo: map['titulo'],
+      descripcion: map['descripcion'],
+      fechaHora: DateTime.parse(map['fechaHora']),
+      activo: map['activo'],
+    );
+  }
 }
 
-class _ContadorPasosScreenState extends State<ContadorPasosScreen> {
-  int _pasos = 0;
-  double _ultimaAceleracion = 0;
-  bool _monitoreando = false;
-  DateTime? _ultimoPaso;
+class RecordatoriosScreen extends StatefulWidget {
+  const RecordatoriosScreen({Key? key}) : super(key: key);
+
+  @override
+  State<RecordatoriosScreen> createState() => _RecordatoriosScreenState();
+}
+
+class _RecordatoriosScreenState extends State<RecordatoriosScreen> {
+  final FlutterLocalNotificationsPlugin notificationsPlugin =
+  FlutterLocalNotificationsPlugin();
+  final List<Recordatorio> _recordatorios = [];
+  final _formKey = GlobalKey<FormState>();
+  final _tituloController = TextEditingController();
+  final _descripcionController = TextEditingController();
+  DateTime _fechaHora = DateTime.now().add(const Duration(minutes: 5));
 
   @override
   void initState() {
     super.initState();
-    _iniciarMonitoreo();
+    _initializeNotifications();
+    _cargarRecordatorios();
   }
 
-  void _iniciarMonitoreo() {
-    accelerometerEvents.listen((AccelerometerEvent event) {
-      if (!_monitoreando) return;
+  Future<void> _initializeNotifications() async {
+    tz.initializeTimeZones();
 
-      final aceleracionTotal = (event.x * event.x +
-          event.y * event.y +
-          event.z * event.z);
+    const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
-      final delta = aceleracionTotal - _ultimaAceleracion;
+    const DarwinInitializationSettings iosSettings =
+    DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
 
-      if (delta > 15) { // Umbral para detectar paso
-        final ahora = DateTime.now();
-        if (_ultimoPaso == null ||
-            ahora.difference(_ultimoPaso!) > const Duration(milliseconds: 300)) {
+    const InitializationSettings initializationSettings =
+    InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
 
-          setState(() {
-            _pasos++;
-            _ultimoPaso = ahora;
-          });
-        }
-      }
-
-      _ultimaAceleracion = aceleracionTotal;
-    });
+    await notificationsPlugin.initialize(initializationSettings);
   }
 
-  void _toggleMonitoreo() {
+  void _cargarRecordatorios() {
+    // En una app real, cargaríamos desde SharedPreferences o base de datos
     setState(() {
-      _monitoreando = !_monitoreando;
-      if (!_monitoreando) {
-        _ultimaAceleracion = 0;
-        _ultimoPaso = null;
-      }
+      _recordatorios.addAll([
+        Recordatorio(
+          id: '1',
+          titulo: 'Recordatorio de ejemplo',
+          descripcion: 'Esta es una descripción de ejemplo',
+          fechaHora: DateTime.now().add(const Duration(hours: 1)),
+        ),
+      ]);
     });
   }
 
-  void _reiniciarContador() {
+  void _agregarRecordatorio() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Nuevo Recordatorio'),
+            content: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: _tituloController,
+                      decoration: const InputDecoration(
+                        labelText: 'Título',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor ingresa un título';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _descripcionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Descripción',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      title: Text(
+                        'Fecha y Hora: ${DateFormat('dd/MM/yyyy HH:mm').format(_fechaHora)}',
+                      ),
+                      trailing: const Icon(Icons.calendar_today),
+                      onTap: () async {
+                        final fecha = await showDatePicker(
+                          context: context,
+                          initialDate: _fechaHora,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2100),
+                        );
+                        if (fecha != null) {
+                          final hora = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.fromDateTime(_fechaHora),
+                          );
+                          if (hora != null) {
+                            setDialogState(() {
+                              _fechaHora = DateTime(
+                                fecha.year,
+                                fecha.month,
+                                fecha.day,
+                                hora.hour,
+                                hora.minute,
+                              );
+                            });
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    _guardarRecordatorio();
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('Guardar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _guardarRecordatorio() {
+    final nuevoRecordatorio = Recordatorio(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      titulo: _tituloController.text,
+      descripcion: _descripcionController.text,
+      fechaHora: _fechaHora,
+    );
+
     setState(() {
-      _pasos = 0;
-      _ultimaAceleracion = 0;
-      _ultimoPaso = null;
+      _recordatorios.add(nuevoRecordatorio);
     });
+
+    _programarNotificacion(nuevoRecordatorio);
+
+    _tituloController.clear();
+    _descripcionController.clear();
+    _fechaHora = DateTime.now().add(const Duration(minutes: 5));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Recordatorio agregado correctamente'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Future<void> _programarNotificacion(Recordatorio recordatorio) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'recordatorios_channel',
+      'Recordatorios',
+      channelDescription: 'Canal para recordatorios programados',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails();
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await notificationsPlugin.zonedSchedule(
+      int.parse(recordatorio.id),
+      recordatorio.titulo,
+      recordatorio.descripcion,
+      tz.TZDateTime.from(recordatorio.fechaHora, tz.local),
+      notificationDetails,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
+
+  void _eliminarRecordatorio(int index) {
+    final recordatorio = _recordatorios[index];
+
+    // Cancelar notificación
+    notificationsPlugin.cancel(int.parse(recordatorio.id));
+
+    setState(() {
+      _recordatorios.removeAt(index);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Recordatorio eliminado'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _toggleRecordatorio(int index) {
+    setState(() {
+      _recordatorios[index].activo = !_recordatorios[index].activo;
+    });
+
+    final recordatorio = _recordatorios[index];
+    if (recordatorio.activo) {
+      _programarNotificacion(recordatorio);
+    } else {
+      notificationsPlugin.cancel(int.parse(recordatorio.id));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      floatingActionButton: FloatingActionButton(
+        onPressed: _agregarRecordatorio,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.add),
+      ),
+      body: _recordatorios.isEmpty
+          ? const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Indicador de estado
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: _monitoreando ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _monitoreando ? Colors.green : Colors.grey,
-                ),
-              ),
-              child: Text(
-                _monitoreando ? 'MONITOREANDO PASOS' : 'DETENIDO',
-                style: TextStyle(
-                  color: _monitoreando ? Colors.green : Colors.grey,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            Icon(Icons.notifications_none, size: 80, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No hay recordatorios',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
-            const SizedBox(height: 40),
-
-            // Contador de pasos
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 4,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '$_pasos',
-                    style: const TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Text(
-                    'PASOS',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
-
-            // Botones de control
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _toggleMonitoreo,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _monitoreando ? Colors.red : Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  ),
-                  icon: Icon(_monitoreando ? Icons.pause : Icons.play_arrow),
-                  label: Text(_monitoreando ? 'DETENER' : 'INICIAR'),
-                ),
-                const SizedBox(width: 16),
-                OutlinedButton.icon(
-                  onPressed: _reiniciarContador,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('REINICIAR'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 30),
-
-            // Información
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32.0),
-              child: Text(
-                'El contador utiliza el acelerómetro del dispositivo '
-                    'para detectar movimientos que simulan pasos. '
-                    'Para mejores resultados, lleva el dispositivo en el bolsillo.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
+            Text(
+              'Presiona el botón + para agregar uno',
+              style: TextStyle(color: Colors.grey),
             ),
           ],
         ),
+      )
+          : ListView.builder(
+        itemCount: _recordatorios.length,
+        itemBuilder: (context, index) {
+          final recordatorio = _recordatorios[index];
+          return Dismissible(
+            key: Key(recordatorio.id),
+            background: Container(color: Colors.red),
+            onDismissed: (direction) => _eliminarRecordatorio(index),
+            child: Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ListTile(
+                leading: Icon(
+                  recordatorio.activo
+                      ? Icons.notifications_active
+                      : Icons.notifications_off,
+                  color: recordatorio.activo
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.grey,
+                ),
+                title: Text(recordatorio.titulo),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(recordatorio.descripcion),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('dd/MM/yyyy HH:mm').format(recordatorio.fechaHora),
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        recordatorio.activo
+                            ? Icons.pause
+                            : Icons.play_arrow,
+                      ),
+                      onPressed: () => _toggleRecordatorio(index),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () => _eliminarRecordatorio(index),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
