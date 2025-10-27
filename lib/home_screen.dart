@@ -1,4 +1,4 @@
-import 'package.flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'recordatorios_screen.dart';
 import 'linterna_screen.dart';
 import 'contador_pasos_screen.dart';

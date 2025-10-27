@@ -24,7 +24,7 @@ class Recordatorio {
       'id': id,
       'titulo': titulo,
       'descripcion': descripcion,
-      'fechaHora': fechaHora.toIso86o1String(),
+      'fechaHora': fechaHora.toIso8601String(),
       'activo': activo,
     };
   }
@@ -228,8 +228,8 @@ class _RecordatoriosScreenState extends State<RecordatoriosScreen> {
       'recordatorios_channel',
       'Recordatorios',
       channelDescription: 'Canal para recordatorios programados',
-      importance: Importance.default, // <-- Bajado de .max a .default
-      priority: Priority.default, // <-- Bajado de .high a .default
+      importance: Importance.low, // <-- Bajado de .max a .low
+      priority: Priority.low, // <-- Bajado de .high a .low
       playSound: false, // <-- Explícitamente apagamos sonido
       enableVibration: false, // <-- Explícitamente apagamos vibración
     );
